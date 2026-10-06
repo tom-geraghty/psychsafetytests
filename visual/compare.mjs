@@ -93,3 +93,8 @@ const md = [`## Before and after (${a} vs ${b})`, '', `${flagged.length} of ${ro
   ...rows.slice(0, 20).map(r => `- ${r.pct > threshold ? '🔶' : '▫️'} \`${r.f}\` ${r.missing ? `missing in ${r.missing}` : r.pct.toFixed(2) + '%'}`)].join('\n');
 fs.writeFileSync(path.join(out, 'summary.md'), md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
+if (process.env.GITHUB_ACTIONS) {
+  // Show the headline on the run's page too.
+  for (const r of flagged.slice(0, 10)) console.log(`::warning title=Changed after the update::${r.f} ${r.missing ? `missing in ${r.missing}` : r.pct.toFixed(1) + '% of the page changed'}`);
+  console.log(`::notice title=Before and after::${flagged.length} of ${rows.length} pictures changed by more than ${threshold}%. Download before-after-report and open index.html to see them.`);
+}

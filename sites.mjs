@@ -97,7 +97,7 @@ export const SITES = {
     ],
     browserPages: [
       // Known issue (found 6 Oct 2026): the home page throws JavaScript errors
-      // ("wp is not defined", "tns is not defined"). Usually scripts loading in
+      // ("wp", "tns" and "jQuery" are not defined). Usually scripts loading in
       // the wrong order, e.g. a speed plugin delaying them; it can stop a slider
       // working. Remove the knownIssues line once it's fixed.
       { path: '/', name: 'home', knownIssues: ['script-errors'] },
