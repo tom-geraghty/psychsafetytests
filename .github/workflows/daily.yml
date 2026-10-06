@@ -23,15 +23,15 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
 
-      - name: Every page, product and redirect
-        id: http
-        continue-on-error: true
-        run: npm run full
-
       - name: In a real browser (desktop and phone)
         id: browser
         continue-on-error: true
         run: npx playwright test
+
+      - name: Every page, product and redirect
+        id: http
+        continue-on-error: true
+        run: npm run full
 
       - name: Summary
         if: always()
@@ -39,6 +39,7 @@ jobs:
           mkdir -p results
           node checks/browser-summary.mjs >> results/full.md
           node checks/browser-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+          node checks/browser-summary.mjs --annotate
 
       - name: Keep the report and screenshots (14 days)
         if: always()

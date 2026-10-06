@@ -12,7 +12,7 @@ import path from 'node:path';
 import { SITES, siteBase, isLive } from '../sites.mjs';
 import { get, traceRedirects, pool } from './http.mjs';
 import {
-  inspectPage, isNoindex, robotsBlocksEverything, extractLinks,
+  findErrors as findErrorsQuick, inspectPage, isNoindex, robotsBlocksEverything, extractLinks,
   extractSitemapUrls, findCf7Form, findPaymentLinks,
 } from './inspect.mjs';
 
@@ -168,26 +168,42 @@ async function crawl(key, site, base, live) {
   const list = [...urls].filter(u => !/\/(wp-admin|wp-login|feed)\b|\.(pdf|jpe?g|png|zip|docx?|xlsx?|pptx?)$/i.test(u));
   let bad = 0;
   let offsite = 0;
-  await pool(list, 4, async url => {
+  let throttled = 0;
+  // One page at a time with a pause in between, so the site's firewall
+  // (Wordfence) doesn't mistake us for an aggressive crawler.
+  const pause = Number(process.env.CRAWL_DELAY_MS || 1000);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const firewall = t => /wordfence|access to this site has been (temporarily )?limited|too many requests/i.test(t);
+  for (const url of list) {
     const short = url.replace(base, '') || '/';
     // Follow redirects ourselves: ones that leave the site (e.g. to the course
     // platform or Measure) are fine and aren't ours to check here.
     let current = url;
     let r;
+    let left = false;
     for (let hop = 0; hop < 5; hop++) {
       r = await get(current, { siteKey: key, timeoutMs: 45000, redirect: 'manual' });
+      if ((r.status === 429 || r.status === 503) && !findErrorsQuick(r.text).length) {
+        // Slowed down by the firewall or a busy server: wait, then try once more.
+        await sleep(30000);
+        r = await get(current, { siteKey: key, timeoutMs: 45000, redirect: 'manual' });
+      }
       const loc = r.headers.get('location');
       if (!(r.status >= 300 && r.status < 400 && loc)) break;
       const nextUrl = new URL(loc, current);
-      if (nextUrl.origin !== new URL(base).origin) { offsite++; return; }
+      if (nextUrl.origin !== new URL(base).origin) { offsite++; left = true; break; }
       current = nextUrl.toString();
     }
+    await sleep(pause);
+    if (left) continue;
+    if ((r.status === 429 || r.status === 503) && firewall(r.text)) { throttled++; continue; }
     const ct = r.headers.get('content-type') || '';
-    if (r.ok && r.status === 200 && !ct.includes('text/html')) return; // a PDF or similar: it loads, that's enough
+    if (r.ok && r.status === 200 && !ct.includes('text/html')) continue; // a PDF or similar: it loads, that's enough
     const problems = inspectPage(r, { minBytes: 5000, live });
     if (problems.length) { bad++; fail(key, 'every page', short, problems.join('; ')); }
-  });
-  if (!bad) pass(key, 'every page', `${list.length} pages`, `all load without errors${offsite ? ` (${offsite} redirect to other sites)` : ''}`);
+  }
+  if (throttled) warn(key, 'every page', `${throttled} pages`, "skipped: the site's firewall asked us to slow down (not a problem with the site)");
+  if (!bad) pass(key, 'every page', `${list.length - throttled} pages`, `all load without errors${offsite ? ` (${offsite} redirect to other sites)` : ''}`);
 }
 
 async function runSite(key) {
@@ -217,10 +233,12 @@ function summarise() {
   lines.push(`## Site checks (${MODE}) — ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC`);
   lines.push('');
   lines.push(`${counts.fail ? '❌' : '✅'} ${counts.pass} passed, ${counts.warn} warnings, ${counts.fail} failed`);
-  const shown = results.filter(r => r.status !== 'pass');
+  const shown = results.filter(r => r.status !== 'pass').sort((a, b) => (a.status === 'fail' ? 0 : 1) - (b.status === 'fail' ? 0 : 1));
+  const MAX = 40;
   if (shown.length) {
     lines.push('', '| | Site | Check | Where | Detail |', '|---|---|---|---|---|');
-    for (const r of shown) lines.push(`| ${icon[r.status]} | ${SITES[r.site].name} | ${r.check} | \`${r.target}\` | ${r.detail.replace(/\|/g, '\\|')} |`);
+    for (const r of shown.slice(0, MAX)) lines.push(`| ${icon[r.status]} | ${SITES[r.site].name} | ${r.check} | \`${r.target}\` | ${r.detail.replace(/\|/g, '\\|')} |`);
+    if (shown.length > MAX) lines.push('', `…and ${shown.length - MAX} more (see results/${MODE}.json in the run's files).`);
   }
   lines.push('', '<details><summary>Everything that passed</summary>', '');
   for (const r of results.filter(r => r.status === 'pass')) lines.push(`- ${SITES[r.site].name}: ${r.check} \`${r.target}\` ${r.detail}`);
@@ -244,4 +262,12 @@ for (const r of results) {
   if (r.status !== 'pass' || process.env.VERBOSE) console.log(`${r.status.toUpperCase().padEnd(4)} ${SITES[r.site].name} | ${r.check} | ${r.target} | ${r.detail}`);
 }
 console.log(`\n${counts.pass} passed, ${counts.warn} warnings, ${counts.fail} failed`);
+if (process.env.GITHUB_ACTIONS) {
+  // Show problems on the run's page in GitHub (and keep them readable via the API).
+  const clean = t => String(t).replace(/\r?\n/g, ' ').replace(/::/g, ': ');
+  for (const r of results.filter(x => x.status !== 'pass')) {
+    console.log(`::${r.status === 'fail' ? 'error' : 'warning'} title=${clean(`${SITES[r.site].name}: ${r.check}`)}::${clean(`${r.target} ${r.detail}`)}`);
+  }
+  console.log(`::notice title=${MODE} checks::${counts.pass} passed, ${counts.warn} warnings, ${counts.fail} failed`);
+}
 process.exit(counts.fail ? 1 : 0);

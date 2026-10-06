@@ -23,7 +23,13 @@ const known = [];
       if (t.status === 'expected') { passed++; continue; }
       if (t.status === 'flaky') { flaky++; continue; }
       failed++;
-      const msg = strip(last?.error?.message).split('\n').find(l => l.trim() && !/^\s*expect\(/.test(l)) || 'failed';
+      const lines = strip(last?.error?.message).split('\n');
+      let msg = lines.find(l => l.trim() && !/^\s*expect\(/.test(l)) || 'failed';
+      // Add what was actually found (e.g. which file failed to load), if Playwright reported it.
+      const found = lines.filter(l => /^\s*\+\s+"/.test(l)).map(l => l.replace(/^\s*\+\s+/, '').replace(/,$/, '')).slice(0, 3);
+      const received = lines.find(l => /^Received:/.test(l.trim()));
+      if (found.length) msg += ` → ${found.join('; ')}`;
+      else if (received) msg += ` → ${received.trim()}`;
       rows.push(`| ❌ | ${t.projectName} | ${spec.title} | ${msg.replace(/\|/g, '\\|').slice(0, 220)} |`);
     }
   }
@@ -36,4 +42,14 @@ const out = [
 ];
 if (rows.length) out.push('', '| | Where | Check | What went wrong |', '|---|---|---|---|', ...rows);
 if (known.length) out.push('', '**Known issues** (listed in sites.mjs, not counted as failures):', ...known.map(k => `- ${k}`));
-console.log(out.join('\n'));
+// With --annotate, print GitHub annotations instead of the Markdown summary.
+if (!process.argv.includes('--annotate')) console.log(out.join('\n'));
+else {
+  const clean = t => String(t).replace(/\r?\n/g, ' ').replace(/::/g, ': ');
+  for (const r of rows) {
+    const [, , where, check, what] = r.split('|').map(x => x.trim());
+    console.log(`::error title=${clean(`Browser: ${where}`)}::${clean(`${check}: ${what}`)}`);
+  }
+  for (const k of known) console.log(`::warning title=Known issue::${clean(k)}`);
+  console.log(`::notice title=Browser checks::${passed} passed, ${failed} failed${flaky ? `, ${flaky} passed on a second try` : ''}`);
+}

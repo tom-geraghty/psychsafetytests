@@ -9,7 +9,7 @@ module.exports = async ({ github, context, core }, { label, title, summaryFile, 
   const summary = fs.existsSync(summaryFile) ? fs.readFileSync(summaryFile, 'utf8') : '_No summary was written: the check itself may have crashed. See the run log._';
   // A fingerprint of what's failing, so we only comment when something changes.
   const failing = summary.split('\n').filter(l => l.startsWith('| ❌')).map(l => l.split('|').slice(2, 5).join('|').trim()).sort().join('\n');
-  const marker = `<!-- failing:${Buffer.from(failing).toString('base64')} -->`;
+  const marker = `<!-- failing:${require('crypto').createHash('sha1').update(failing).digest('hex')} -->`;
 
   if (failed) {
     const body = `${summary}\n\n[See the full run](${runUrl})\n${marker}`;

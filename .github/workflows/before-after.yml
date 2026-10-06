@@ -56,19 +56,21 @@ jobs:
             echo "SITE_AUTH_ITERUM=$DEV_SITE_AUTH" >> "$GITHUB_ENV"
           fi"
 
-      - name: Every page, product and redirect
-        id: http
-        continue-on-error: true
-        run: npm run full
-
       - name: In a real browser (desktop and phone)
         id: browser
         continue-on-error: true
         run: npx playwright test
 
+      - name: Every page, product and redirect
+        id: http
+        continue-on-error: true
+        run: npm run full
+
       - name: Summary
         if: always()
-        run: node checks/browser-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          node checks/browser-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+          node checks/browser-summary.mjs --annotate
 
       - name: Keep the pictures
         if: always()

@@ -7,8 +7,8 @@ Automated checks that tell us when either website breaks, and show what changed 
 | When | What it checks | Time |
 |---|---|---|
 | **Every hour** | Key pages load, with no WordPress or PHP error. The contact form, payment page, search and RSS feed work. Pages are still visible to search engines, and nothing points at the dev site. The security certificate isn't about to expire. | About a minute |
-| **Every morning** (06:23 UK) | Everything above, plus every page and post on the site, every Buy Now button, and the redirects from the old domain and from www. Then the key pages and journeys are checked in a real browser, at desktop and phone sizes. | About 15 minutes |
-| **Before and after an update** (run by hand) | The morning checks, plus full-page pictures of every key page. After the update, a report shows exactly what changed. | About 15 minutes |
+| **Every morning** (06:23 UK) | Everything above, plus every page and post on the site, every Buy Now button, and the redirects from the old domain and from www. Then the key pages and journeys are checked in a real browser, at desktop and phone sizes. | About 25 minutes |
+| **Before and after an update** (run by hand) | The morning checks, plus full-page pictures of every key page. After the update, a report shows exactly what changed. | About 25 minutes |
 | **Whenever the checks change** | The checks are run against a deliberately broken fake site, to prove they still catch problems. | Under a minute |
 
 ### What the browser checks look for
@@ -34,7 +34,7 @@ To make sure the emails arrive, open **Watch** at the top of this repository and
 
 ## Before and after an update (for whoever does the update)
 
-1. Go to **Actions → Before and after an update → Run workflow** and choose **before**. Wait for it to finish (about 15 minutes). If anything is already failing, note it, so you don't blame the update for it later.
+1. Go to **Actions → Before and after an update → Run workflow** and choose **before**. Wait for it to finish (about 25 minutes). If anything is already failing, note it, so you don't blame the update for it later.
 2. Do the update: plugins, theme or WordPress.
 3. Run the same workflow again and choose **after**.
 4. Open the run and download **before-after-report**. Open `index.html` inside it. Pages are listed by how much they changed, with the old and new pictures side by side and the changes highlighted in red.
@@ -85,4 +85,4 @@ Current known issues:
 This runs on GitHub Actions.
 
 - **Public repository:** the minutes are free and unlimited. But anyone can see the alert issues, and GitHub switches off scheduled checks after 60 days without a commit.
-- **Private repository:** the hourly check uses about 720 minutes a month and the morning check about 450. That's within the 2,000 free minutes a month. Each before-and-after run adds about 30 minutes.
+- **Private repository:** the hourly check uses about 720 minutes a month and the morning check about 750. That's within the 2,000 free minutes a month. Each before-and-after run adds about 30 minutes.
