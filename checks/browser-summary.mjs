@@ -2,7 +2,7 @@
 // Turn Playwright's JSON results into a short, readable summary (Markdown).
 import fs from 'node:fs';
 
-const file = process.argv[2] || 'results/browser.json';
+const file = process.argv.slice(2).find(a => !a.startsWith('--')) || 'results/browser.json';
 if (!fs.existsSync(file)) {
   console.log('## Browser checks\n\n❌ The browser checks did not produce results (they may have crashed). See the run log.');
   process.exit(0);
