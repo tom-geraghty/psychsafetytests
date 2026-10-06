@@ -1,0 +1,21 @@
+{
+  "name": "site-checks",
+  "private": true,
+  "type": "module",
+  "description": "Automated checks for psychsafety.com and iterum.co.uk",
+  "scripts": {
+    "smoke": "node checks/run.mjs --mode smoke",
+    "full": "node checks/run.mjs --mode full",
+    "browser": "playwright test",
+    "capture": "node visual/capture.mjs",
+    "compare": "node visual/compare.mjs",
+    "test:self": "node --test selftest/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@playwright/test": "1.56.1",
+    "pixelmatch": "7.1.0",
+    "pngjs": "7.0.0",
+    "undici": "7.16.0"
+  }
+}

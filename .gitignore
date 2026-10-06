@@ -1,0 +1,8 @@
+node_modules/
+results/
+results-*/
+screenshots/
+snapshots/
+test-results/
+playwright-report/
+blob-report/

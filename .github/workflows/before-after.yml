@@ -1,0 +1,129 @@
+name: Before and after an update
+# Run with "before" just before updating plugins, the theme or WordPress, and
+# with "after" once you're done. "after" compares every page with the "before"
+# pictures and makes a report showing what changed.
+#
+# To check the dev copy instead of live, change the address. If the dev copy is
+# password-protected, add a repository secret called DEV_SITE_AUTH containing
+# username:password (it's only sent to addresses that aren't the live site).
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Before or after the update?
+        type: choice
+        options: [before, after]
+        required: true
+      psychsafety_url:
+        description: psychsafety.com address to check
+        default: https://psychsafety.com
+        required: true
+      iterum_url:
+        description: iterum.co.uk address to check
+        default: https://iterum.co.uk
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SITE_URL_PSYCHSAFETY: ${{ inputs.psychsafety_url }}
+      SITE_URL_ITERUM: ${{ inputs.iterum_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+
+      - name: Use the dev password for non-live addresses
+        env:
+          DEV_SITE_AUTH: ${{ secrets.DEV_SITE_AUTH }}
+        run: |
+          if [ -z "$DEV_SITE_AUTH" ]; then exit 0; fi
+          echo "::add-mask::$DEV_SITE_AUTH"
+          if [ "$SITE_URL_PSYCHSAFETY" != "https://psychsafety.com" ]; then
+            echo "SITE_AUTH_PSYCHSAFETY=$DEV_SITE_AUTH" >> "$GITHUB_ENV"
+          fi
+          if [ "$SITE_URL_ITERUM" != "https://iterum.co.uk" ]; then
+            echo "SITE_AUTH_ITERUM=$DEV_SITE_AUTH" >> "$GITHUB_ENV"
+          fi"
+
+      - name: Every page, product and redirect
+        id: http
+        continue-on-error: true
+        run: npm run full
+
+      - name: In a real browser (desktop and phone)
+        id: browser
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Summary
+        if: always()
+        run: node checks/browser-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the pictures
+        if: always()
+        run: mkdir -p snapshots && cp -r screenshots "snapshots/${{ inputs.stage }}"
+
+      - name: Save the "before" pictures (30 days)
+        if: inputs.stage == 'before'
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots-before
+          path: snapshots/before/
+          retention-days: 30
+
+      - name: Find the latest "before" pictures
+        if: inputs.stage == 'after'
+        id: before
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const arts = await github.rest.actions.listArtifactsForRepo({ owner, repo, name: 'snapshots-before', per_page: 1 });
+            const a = arts.data.artifacts.find(x => !x.expired);
+            if (!a) core.setFailed('No "before" pictures found. Run this with "before" first, before you update.');
+            else { core.setOutput('run_id', a.workflow_run.id); core.notice(`Comparing with "before" pictures from ${a.created_at}`); }
+
+      - name: Fetch them
+        if: inputs.stage == 'after'
+        uses: actions/download-artifact@v4
+        with:
+          name: snapshots-before
+          path: snapshots/before/
+          run-id: ${{ steps.before.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Compare before and after
+        if: inputs.stage == 'after'
+        run: npm run compare -- before after 2
+
+      - name: Keep the before-and-after report (30 days)
+        if: inputs.stage == 'after'
+        uses: actions/upload-artifact@v4
+        with:
+          name: before-after-report
+          path: snapshots/compare-before-vs-after/
+          retention-days: 30
+
+      - name: Keep the test report (30 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.stage }}-test-report
+          path: |
+            playwright-report/
+            results/
+          retention-days: 30
+
+      - if: steps.http.outcome == 'failure' || steps.browser.outcome == 'failure'
+        run: exit 1

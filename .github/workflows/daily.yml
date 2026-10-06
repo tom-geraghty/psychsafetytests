@@ -1,0 +1,68 @@
+name: Daily full check
+# Every page and post, every Buy Now button, redirects, then the key pages and
+# journeys in a real browser at desktop and phone sizes.
+on:
+  schedule:
+    - cron: '23 5 * * *'   # 05:23 UTC, about 6:23 in the UK
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+
+      - name: Every page, product and redirect
+        id: http
+        continue-on-error: true
+        run: npm run full
+
+      - name: In a real browser (desktop and phone)
+        id: browser
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Summary
+        if: always()
+        run: |
+          mkdir -p results
+          node checks/browser-summary.mjs >> results/full.md
+          node checks/browser-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report and screenshots (14 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report
+          path: |
+            playwright-report/
+            results/
+            screenshots/
+          retention-days: 14
+
+      - name: Raise or clear the alarm
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await require('./.github/scripts/alert.cjs')({ github, context, core }, {
+              label: 'daily-check',
+              title: '🟠 Daily website check found problems',
+              summaryFile: 'results/full.md',
+              failed: ['${{ steps.http.outcome }}', '${{ steps.browser.outcome }}'].includes('failure'),
+              runUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - if: steps.http.outcome == 'failure' || steps.browser.outcome == 'failure'
+        run: exit 1
