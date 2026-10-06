@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Fast checks that don't need a browser.
 //
-//   node checks/run.mjs --mode smoke   # every hour: is anything on fire?
-//   node checks/run.mjs --mode full    # daily / before and after updates: every page, every product, redirects
+//   node checks/run.mjs --mode smoke   # quick check: is anything on fire?
+//   node checks/run.mjs --mode full    # full check and before/after: every page, every product, redirects
 //   add --site psychsafety (or iterum) to check one site only
 //
 // Exit code is 1 if any check fails, so a scheduler can raise the alarm.

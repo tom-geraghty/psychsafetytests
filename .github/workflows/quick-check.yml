@@ -1,10 +1,9 @@
-name: Hourly check
-# Is anything on fire? Key pages, contact form, payments, search, feed, certificate.
-# If it fails twice in a row (two minutes apart), an issue is opened and assigned
-# to the repo owner, which sends an email. It closes itself when things recover.
+name: Quick check
+# Run by hand after any change (about a minute): key pages, contact form,
+# payments, search, feed, certificate. If it fails twice in a row (two minutes
+# apart), an issue is opened and assigned to the repo owner, which sends an
+# email. It closes itself once a later run passes.
 on:
-  schedule:
-    - cron: '7 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: hourly
+  group: quick-check
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +38,7 @@ jobs:
           script: |
             await require('./.github/scripts/alert.cjs')({ github, context, core }, {
               label: 'site-problem',
-              title: '🔴 Website problem: the hourly check is failing',
+              title: '🔴 Website problem: the quick check is failing',
               summaryFile: 'results/smoke.md',
               failed: '${{ steps.check.outcome }}' === 'failure',
               runUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,

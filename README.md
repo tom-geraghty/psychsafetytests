@@ -1,15 +1,17 @@
 # Site checks for psychsafety.com and iterum.co.uk
 
-Automated checks that tell us when either website breaks, and show what changed after an update. They visit the sites the way a reader would. They never log in, buy anything, send an email or sign anyone up.
+Automated checks to run after any change to either website: a plugin or theme update, a WordPress update, or a new page. They visit the sites the way a reader would. They never log in, buy anything, send an email or sign anyone up.
 
-## What runs, and when
+## The checks
 
-| When | What it checks | Time |
-|---|---|---|
-| **Every hour** | Key pages load, with no WordPress or PHP error. The contact form, payment page, search and RSS feed work. Pages are still visible to search engines, and nothing points at the dev site. The security certificate isn't about to expire. | About a minute |
-| **Every morning** (06:23 UK) | Everything above, plus every page and post on the site, every Buy Now button, and the redirects from the old domain and from www. Then the key pages and journeys are checked in a real browser, at desktop and phone sizes. | About 25 minutes |
-| **Before and after an update** (run by hand) | The morning checks, plus full-page pictures of every key page. After the update, a report shows exactly what changed. | About 25 minutes |
-| **Whenever the checks change** | The checks are run against a deliberately broken fake site, to prove they still catch problems. | Under a minute |
+Run them from **Actions** at the top of this repository: pick one, then **Run workflow**.
+
+| Check | When to run it | What it checks | Time |
+|---|---|---|---|
+| **Quick check** | After any small change | Key pages load, with no WordPress or PHP error. The contact form, payment page, search and RSS feed work. Pages are still visible to search engines, and nothing points at the dev site. The security certificate isn't about to expire. | About a minute |
+| **Full check** | After a bigger change | Everything above, plus the key pages and journeys in a real browser at desktop and phone sizes, every page and post on the site, every Buy Now button, and the redirects from the old domain and from www. | About 25 minutes |
+| **Before and after an update** | Either side of an update | The full check, plus full-page pictures of every key page. After the update, a report shows exactly what changed. | About 25 minutes each time |
+| **Check the checks** | Runs by itself whenever the checks change | The checks are run against a deliberately broken fake site, to prove they still catch problems. | Under a minute |
 
 ### What the browser checks look for
 
@@ -26,9 +28,11 @@ Automated checks that tell us when either website breaks, and show what changed 
   - The contact form rejects an empty message, without sending anything.
   - The newsletter form is there. Nothing is submitted.
 
-## When something breaks
+## When something fails
 
-If the hourly check fails twice in a row (two minutes apart, to rule out a blip), it opens an issue in this repository and assigns it to Tom. GitHub then emails him. While the problem continues, the issue is only updated when what's failing changes. When everything passes again, it says so and closes itself. The morning check works the same way, with its own issue.
+The run is marked as failed, and the problems are listed at the top of its page.
+
+The quick and full checks also open an issue in this repository and assign it to Tom, which sends him an email. The quick check first tries again two minutes later, to rule out a blip. The issue closes itself the next time that check passes.
 
 To make sure the emails arrive, open **Watch** at the top of this repository and choose **All activity**. Also check that email is switched on under *Settings → Notifications*.
 
@@ -53,7 +57,7 @@ You need Node.js 20 or later.
 ```bash
 npm ci
 npx playwright install chromium
-npm run smoke            # the hourly checks
+npm run smoke            # the quick check
 npm run full             # every page, product and redirect
 npx playwright test      # the browser checks
 npm run capture -- before   # pictures before an update
@@ -83,7 +87,4 @@ Current known issues:
 
 ## Cost
 
-This runs on GitHub Actions.
-
-- **Public repository:** the minutes are free and unlimited. But anyone can see the alert issues, and GitHub switches off scheduled checks after 60 days without a commit.
-- **Private repository:** the hourly check uses about 720 minutes a month and the morning check about 750. That's within the 2,000 free minutes a month. Each before-and-after run adds about 30 minutes.
+This runs on GitHub Actions. Public repositories get unlimited free minutes. A private repository gets 2,000 free minutes a month: a quick check uses about one minute and a full check about 25, so normal use stays well within that.

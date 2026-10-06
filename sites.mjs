@@ -29,7 +29,7 @@ export const SITES = {
     base: 'https://psychsafety.com',
     // Text every normal page should contain (header/footer furniture).
     everyPageHas: ['Psych Safety', 'Iterum Ltd'],
-    // Checked on every run (hourly). Keep this list short: these are the pages
+    // Checked by the quick check. Keep this list short: these are the pages
     // that matter most if the site falls over.
     smoke: [
       { path: '/', has: ['Organisational Training', 'Online Workshops'] },

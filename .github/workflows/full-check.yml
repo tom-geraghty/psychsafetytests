@@ -1,9 +1,8 @@
-name: Daily full check
-# Every page and post, every Buy Now button, redirects, then the key pages and
-# journeys in a real browser at desktop and phone sizes.
+name: Full check
+# Run by hand after a bigger change (about 25 minutes): the key pages and
+# journeys in a real browser at desktop and phone sizes, then every page and
+# post, every Buy Now button and the redirects.
 on:
-  schedule:
-    - cron: '23 5 * * *'   # 05:23 UTC, about 6:23 in the UK
   workflow_dispatch:
 
 permissions:
@@ -45,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: daily-report
+          name: full-check-report
           path: |
             playwright-report/
             results/
@@ -58,8 +57,8 @@ jobs:
         with:
           script: |
             await require('./.github/scripts/alert.cjs')({ github, context, core }, {
-              label: 'daily-check',
-              title: '🟠 Daily website check found problems',
+              label: 'full-check',
+              title: '🟠 Full website check found problems',
               summaryFile: 'results/full.md',
               failed: ['${{ steps.http.outcome }}', '${{ steps.browser.outcome }}'].includes('failure'),
               runUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,

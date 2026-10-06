@@ -1,4 +1,4 @@
-// End to end: point the hourly checks at a fake, broken copy of the site and
+// End to end: point the quick check at a fake, broken copy of the site and
 // make sure they fail loudly (and pass on a healthy copy).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -81,6 +81,6 @@ test('missing footer text fails the run', async () => {
   assert.match(out, /\/about\/.*missing expected text "Iterum Ltd"/);
 });
 
-test('sites.mjs keeps the smoke list short (hourly runs must stay quick)', () => {
+test('sites.mjs keeps the quick-check list short', () => {
   assert.ok(site.smoke.length <= 15);
 });
