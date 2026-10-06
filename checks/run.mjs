@@ -264,9 +264,11 @@ for (const r of results) {
 console.log(`\n${counts.pass} passed, ${counts.warn} warnings, ${counts.fail} failed`);
 if (process.env.GITHUB_ACTIONS) {
   // Show problems on the run's page in GitHub (and keep them readable via the API).
-  const clean = t => String(t).replace(/\r?\n/g, ' ').replace(/::/g, ': ');
-  for (const r of results.filter(x => x.status !== 'pass')) {
-    console.log(`::${r.status === 'fail' ? 'error' : 'warning'} title=${clean(`${SITES[r.site].name}: ${r.check}`)}::${clean(`${r.target} ${r.detail}`)}`);
+  // GitHub's annotation syntax: escape %, CR, LF in messages, plus : and , in titles.
+  const msg = t => String(t).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  const prop = t => msg(t).replace(/:/g, '%3A').replace(/,/g, '%2C');
+  for (const r of results.filter(x => x.status !== 'pass').slice(0, 40)) {
+    console.log(`::${r.status === 'fail' ? 'error' : 'warning'} title=${prop(`${SITES[r.site].name} - ${r.check}`)}::${msg(`${r.target} ${r.detail}`)}`);
   }
   console.log(`::notice title=${MODE} checks::${counts.pass} passed, ${counts.warn} warnings, ${counts.fail} failed`);
 }

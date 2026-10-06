@@ -71,7 +71,8 @@ Everything site-specific is in `sites.mjs`: which pages to check, the text each 
 **Known issues** are listed against a page in `sites.mjs` (for example `knownIssues: ['mobile-menu']`). They're reported, but they don't fail the checks. Once one is fixed, the report says so, and you remove the line.
 
 Current known issues:
-- On phones, the Shop page's header has no menu button until you scroll down. Found 6 October 2026.
+- **psychsafety.com:** on phones, the Shop page's header has no menu button until you scroll down. Found 6 October 2026.
+- **iterum.co.uk:** the home page throws JavaScript errors ("wp is not defined", "tns is not defined"). This usually means scripts are loading in the wrong order, for example because a speed plugin delays them, and it can stop a slider working. Found 6 October 2026.
 
 ## What these checks can't see
 

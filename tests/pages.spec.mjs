@@ -99,6 +99,12 @@ for (const [key, site] of Object.entries(SITES)) {
         }
 
         if (skipThirdParty) problems = problems.filter(p => !THIRD_PARTY_NOISE.test(p));
+        if (pg.knownIssues?.includes('script-errors')) {
+          const scriptErrors = [...new Set(problems.filter(p => p.startsWith('script error')))];
+          if (scriptErrors.length) testInfo.annotations.push({ type: 'known issue', description: scriptErrors.join('; ') });
+          else testInfo.annotations.push({ type: 'known issue fixed?', description: 'no script errors now: remove "script-errors" from knownIssues in sites.mjs' });
+          problems = problems.filter(p => !p.startsWith('script error'));
+        }
         expect(problems, 'no script errors or missing files from our own site').toEqual([]);
 
         // Keep a full-page picture for the record (and for before/after comparison).

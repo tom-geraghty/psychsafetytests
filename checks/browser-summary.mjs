@@ -12,13 +12,17 @@ const strip = s => (s || '').replace(/\x1b\[[0-9;]*m/g, '');
 const rows = [];
 let passed = 0, failed = 0, flaky = 0, skipped = 0;
 const known = [];
+const uniq = a => [...new Set(a)];
 
 (function walk(suite, trail = []) {
   for (const s of suite.suites || []) walk(s, [...trail, s.title]);
   for (const spec of suite.specs || []) {
     for (const t of spec.tests) {
       const last = t.results.at(-1);
-      for (const a of t.annotations || []) if (/known issue/.test(a.type)) known.push(`${t.projectName}: ${spec.title}: ${a.description}`);
+      // Annotations added while a test runs are stored on each result; static ones on the test.
+      for (const a of [...(t.annotations || []), ...t.results.flatMap(r => r.annotations || [])]) {
+        if (/known issue/.test(a.type)) known.push(`${t.projectName}: ${spec.title}: ${a.description}`);
+      }
       if (t.status === 'skipped') { skipped++; continue; }
       if (t.status === 'expected') { passed++; continue; }
       if (t.status === 'flaky') { flaky++; continue; }
@@ -41,15 +45,17 @@ const out = [
   `${failed ? '❌' : '✅'} ${passed} passed, ${failed} failed${flaky ? `, ${flaky} passed on a second try` : ''}${skipped ? `, ${skipped} not applicable` : ''}`,
 ];
 if (rows.length) out.push('', '| | Where | Check | What went wrong |', '|---|---|---|---|', ...rows);
-if (known.length) out.push('', '**Known issues** (listed in sites.mjs, not counted as failures):', ...known.map(k => `- ${k}`));
+if (known.length) out.push('', '**Known issues** (listed in sites.mjs, not counted as failures):', ...uniq(known).map(k => `- ${k}`));
 // With --annotate, print GitHub annotations instead of the Markdown summary.
 if (!process.argv.includes('--annotate')) console.log(out.join('\n'));
 else {
-  const clean = t => String(t).replace(/\r?\n/g, ' ').replace(/::/g, ': ');
+  // GitHub's annotation syntax: escape %, CR, LF in messages, plus : and , in titles.
+  const msg = t => String(t).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  const prop = t => msg(t).replace(/:/g, '%3A').replace(/,/g, '%2C');
   for (const r of rows) {
     const [, , where, check, what] = r.split('|').map(x => x.trim());
-    console.log(`::error title=${clean(`Browser: ${where}`)}::${clean(`${check}: ${what}`)}`);
+    console.log(`::error title=${prop(`Browser - ${where}`)}::${msg(`${check}: ${what}`)}`);
   }
-  for (const k of known) console.log(`::warning title=Known issue::${clean(k)}`);
+  for (const k of uniq(known)) console.log(`::warning title=Known issue::${msg(k)}`);
   console.log(`::notice title=Browser checks::${passed} passed, ${failed} failed${flaky ? `, ${flaky} passed on a second try` : ''}`);
 }

@@ -44,6 +44,8 @@ test.describe('psychsafety.com journeys', () => {
     test.skip(skipThirdParty, 'needs Google reCAPTCHA');
     await page.goto(site.contactPage);
     const form = page.locator('form.wpcf7-form').first();
+    // The form fades in as you scroll to it, so scroll to it first.
+    await form.scrollIntoViewIfNeeded();
     await expect(form, 'contact form on the page').toBeVisible();
     await form.locator('[type=submit]').first().click();
     await expect(page.locator('.wpcf7-not-valid-tip').first(), 'form checks the required fields').toBeVisible({ timeout: 20_000 });
